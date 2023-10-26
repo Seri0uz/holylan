@@ -1,12 +1,18 @@
-version: '3.5'
+version: '3.9'
 services:
   dns:
     image: lancachenet/lancache-dns:latest
     env_file: .env
-    restart: always
+    restart: unless-stopped
     ports:
       - ${DNS_BIND_IP}:53:53/udp
       - ${DNS_BIND_IP}:53:53/tcp
+    healthcheck:
+      test: ["CMD" , "curl", "-f" , "https://google.com"]
+      interval: "20s"
+      timeout: "5s"
+      retries: 3
+      start_period: "20s"
 
 ## HTTPS requests are now handled in monolithic directly
 ## you could choose to return to sniproxy if desired
@@ -21,14 +27,14 @@ services:
   monolithic:
     image: lancachenet/monolithic:latest
     env_file: .env
-    restart: always
+    restart: unless-stopped
     ports:
       - 80:80/tcp
       - 443:443/tcp
     volumes:
       - ${CACHE_ROOT}/cache:/data/cache
       - ${CACHE_ROOT}/logs:/data/logs
-      
+
   node-exporter:
     image: quay.io/prometheus/node-exporter:latest
     volumes:
@@ -44,24 +50,7 @@ services:
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
     ports:
       - 9100:9100
-    restart: always    
-  
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    volumes:
-      - portainer_localtime:/etc/localtime
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    ports:
-      - 9000:9000
-
-volumes:
-  portainer_localtime: {}
-  portainer_data: {}
 
 networks:
   default:
